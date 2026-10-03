@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=375, initial-scale=1.0">
+  <title>码道小助手</title>
+  <style>
+    :root {
+      --green: #8de068;
+      --neon-cyan: #00e5ff;
+      --neon-purple: #7b2ff7;
+      --neon-pink: #ff2ec4;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .phone {
+      width: 375px;
+      height: 720px;
+      background: #ededed;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .header {
+      height: 48px;
+      background: #3c3c3c;
+      color: #ffffff;
+      font-size: 17px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      border-radius: 0 0 20px 0;
+      box-shadow: 0 2px 12px rgba(0, 229, 255, 0.3);
+    }
+
+    .header .back {
+      position: absolute;
+      left: 12px;
+      font-size: 22px;
+      color: #ffffff;
+      line-height: 1;
+    }
+
+    .chat {
+      flex: 1;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .row {
+      display: flex;
+      align-items: flex-start;
+      animation: pop 0.28s ease-out;
+    }
+
+    @keyframes pop {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .row.right { justify-content: flex-end; }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .avatar.left { background: #c8c8c8; margin-right: 8px; }
+    .avatar.right { background: var(--green); margin-left: 8px; }
+
+    .bubble {
+      max-width: 220px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.5;
+      position: relative;
+      word-break: break-word;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .bubble.left { background: #ffffff; color: #333333; }
+    .bubble.left::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      top: 12px;
+      width: 10px;
+      height: 10px;
+      background: #ffffff;
+      border-radius: 50%;
+    }
+
+    .bubble.right {
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple) 55%, var(--neon-pink));
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+    .bubble.right::before {
+      content: "";
+      position: absolute;
+      right: -5px;
+      top: 12px;
+      width: 10px;
+      height: 10px;
+      background: var(--neon-pink);
+      border-radius: 50%;
+    }
+
+    .time-divider {
+      align-self: center;
+      background: #dcdcdc;
+      color: #999;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      animation: pop 0.28s ease-out;
+    }
+
+    .typing {
+      display: inline-flex;
+      align-items: center;
+      color: var(--green);
+      font-size: 14px;
+    }
+
+    .typing .typing-text { margin-right: 1px; }
+
+    .typing .ellipsis i {
+      font-style: normal;
+      opacity: 0;
+      animation: ell 1.2s infinite;
+    }
+    .typing .ellipsis i:nth-child(2) { animation-delay: 0.2s; }
+    .typing .ellipsis i:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes ell {
+      0%, 100% { opacity: 0; }
+      30%, 70% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="header">
+      <span class="back">‹</span>
+      码道小助手
+    </div>
+    <div class="chat" id="chat"></div>
+  </div>
+  <script>
+    const script = [
+      { type: 'time', text: '今天 14:32' },
+      { side: 'left',  text: '在吗？' },
+      { side: 'right', text: '在的，怎么啦？' },
+      { side: 'left',  text: '我想用 AI 做一个无限动画，听说可以用 git 边做边回退？' },
+      { side: 'right', text: '对，思路很简单' },
+      { type: 'time', text: '14:33' },
+      { side: 'left',  text: '满意就 commit，不满意就 checkout / reset 回退再改' },
+      { side: 'right', text: '懂了，那我先去试试' },
+      { side: 'left',  text: '👍 有不懂的随时问' }
+    ];
+
+    const chat = document.getElementById('chat');
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    function scrollBottom() {
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addTime(text) {
+      const t = document.createElement('div');
+      t.className = 'time-divider';
+      t.textContent = text;
+      chat.appendChild(t);
+      scrollBottom();
+    }
+
+    function addBubble(side, text) {
+      const row = document.createElement('div');
+      row.className = 'row' + (side === 'right' ? ' right' : '');
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar ' + side;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + side;
+      bubble.textContent = text;
+      if (side === 'right') {
+        row.appendChild(bubble);
+        row.appendChild(avatar);
+      } else {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+      }
+      chat.appendChild(row);
+      scrollBottom();
+    }
+
+    function showTyping() {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar left';
+      const typing = document.createElement('div');
+      typing.className = 'bubble left typing';
+      typing.innerHTML = '<span class="typing-text">对方正在输入</span><span class="ellipsis"><i>.</i><i>.</i><i>.</i></span>';
+      row.appendChild(avatar);
+      row.appendChild(typing);
+      chat.appendChild(row);
+      scrollBottom();
+      return row;
+    }
+
+    async function play() {
+      while (true) {
+        for (const msg of script) {
+          if (msg.type === 'time') {
+            addTime(msg.text);
+            await sleep(500);
+            continue;
+          }
+          if (msg.side === 'left') {
+            const typingRow = showTyping();
+            await sleep(1300);
+            typingRow.remove();
+          } else {
+            await sleep(650);
+          }
+          addBubble(msg.side, msg.text);
+          await sleep(750);
+        }
+        await sleep(2200);
+        chat.innerHTML = '';
+        await sleep(400);
+      }
+    }
+
+    play();
+  </script>
+</body>
+</html>
